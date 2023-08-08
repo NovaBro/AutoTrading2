@@ -1,7 +1,7 @@
 import torch, os
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
+import matplotlib.pyplot as plt
 from selenium import webdriver
 
 def normalize(data):
