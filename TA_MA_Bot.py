@@ -1,6 +1,7 @@
 import torch, os
 import numpy as np
 import pandas as pd
+import main 
 import matplotlib.pyplot as plt
 
 def candleSticks(panData:pd.DataFrame, ax:plt.Axes):
@@ -45,19 +46,54 @@ dataPath = "/Users/williamzheng/Documents/pthyon files workspace/STOCKNN/Trading
 amznDF = pd.read_csv(dataPath + "AMZN.csv")
 applDF = pd.read_csv(dataPath + "AAPL.csv")
 
-print(applDF)
-
 fig0 = plt.figure()
 ax0_0 = fig0.add_subplot()
 
 candleSticks(applDF, ax0_0)
 for i in range(1, 3):
     ax0_0.plot(movAvgDF(i * 7, applDF, "Close"))
-day7 = movAvgDF(7, applDF, "Close")
-day14 = movAvgDF(14, applDF, "Close")
+
+ma7 = movAvgDF(7, applDF, "Close")
+ma14 = movAvgDF(14, applDF, "Close")
+
+ma7DF = pd.DataFrame(data=ma7, columns=["Close"])
+ma14DF = pd.DataFrame(data=ma14, columns=["Close"])
+
+def findCross(shortMA:pd.DataFrame, longMA:pd.DataFrame, longestPeriodLen, feature:str):
+    actionTable = np.zeros((len(longMA.index)))
+    temp = 0
+    temp2 = 0
+    for day in range((longestPeriodLen + 1), len(longMA.index)):
+        
+        if shortMA.loc[day -1, feature] > longMA.loc[day -1, feature] and shortMA.loc[day, feature] < longMA.loc[day, feature]:
+            actionTable[day] = -1
+            temp += 1
+        elif shortMA.loc[day -1, feature] < longMA.loc[day -1, feature] and shortMA.loc[day, feature] > longMA.loc[day, feature]:
+            actionTable[day] = 1
+            temp2 += 1
+        else:
+            actionTable[day] = 0
+    return actionTable
 
 
+actionSequence = findCross(ma7DF, ma14DF, 14, "Close")
+ax0_0.plot(actionSequence + 130)
 
+bot1 = main.account(1000)
+startDay = 14
+endDay = 740
+sharesAmount = 4
+for day in range(startDay, endDay):
+    if actionSequence[day] == 1:
+        #bot1.buy(5, applDF.loc[day, "Close"])
+        print(bot1.buy(sharesAmount, applDF.loc[day, "Close"]), f"  {bot1.numBuys}   {bot1.numSells}   {actionSequence[day]}   {day}   {applDF.loc[day, 'Close']}")
+    elif actionSequence[day] == -1:
+        #bot1.sell(5, applDF.loc[day, "Close"])
+        print(bot1.sell(sharesAmount, applDF.loc[day, "Close"]), f"  {bot1.numBuys}   {bot1.numSells}   {actionSequence[day]}   {day}   {applDF.loc[day, 'Close']}")
+
+print(bot1.balance + bot1.numShares * applDF.loc[endDay, "Close"], f"  {bot1.numBuys}   {bot1.numSells}")
+buyhold = sharesAmount * applDF.loc[endDay, "Close"]
+print(buyhold)
 
 plt.show()
 

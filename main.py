@@ -29,12 +29,14 @@ class account():
         if (sharesBought * sharePrice) > self.balance: return False
         self.balance -= (sharesBought * sharePrice)
         self.numShares += sharesBought
+        self.numBuys += 1
         return True
         
     def sell(self, sharesSold, sharePrice):
         if (sharesSold) > self.numShares: return False
         self.balance += (sharesSold * sharePrice)
         self.numShares -= sharesSold
+        self.numSells += 1
         return True
 
 class State():
@@ -50,10 +52,10 @@ class State():
 test = State(1000, "AMZN.csv")
 print("test:\n",test.readData)
 
-fig = plt.figure()
-ax = fig.add_subplot()
+#fig = plt.figure()
+#ax = fig.add_subplot()
 
-ax.plot(applData)
-ax.plot(amznData)
+#ax.plot(applData)
+#ax.plot(amznData)
 
 #plt.show()
