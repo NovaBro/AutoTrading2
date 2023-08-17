@@ -1,8 +1,14 @@
 import torch, os
 import numpy as np
 import pandas as pd
-import main 
+import main, math
+import statsFun as stf
 import matplotlib.pyplot as plt
+
+dataPath = "/Users/williamzheng/Documents/pthyon files workspace/STOCKNN/Trading Attempts/TradeAttempt2/AutoTrading2/"
+
+amznDF = pd.read_csv(dataPath + "AMZN.csv")
+applDF = pd.read_csv(dataPath + "AAPL.csv")
 
 def candleSticks(panData:pd.DataFrame, ax:plt.Axes):
     wick = 0.25
@@ -19,16 +25,6 @@ def candleSticks(panData:pd.DataFrame, ax:plt.Axes):
 def normalize(data):
     return (data - data.min())/(data.max() - data.min())
 
-def movingAvg(length, data:np.ndarray, feature:str = None, displace = None):
-    if feature == None and displace == None:
-        movingAvgArr = np.zeros(data.size)
-        for day in range(data.size - length):
-            tempTotal = 0
-            for l in range(length):
-                tempTotal += data[data.size - (l + day) - 1]
-            tempAvg = tempTotal / length
-            movingAvgArr[data.size - day - 1] = tempAvg
-        return movingAvgArr
     
 def movAvgDF(length, dataFrame:pd.DataFrame, feature:str, displace = None):
     if displace == None:
@@ -41,25 +37,8 @@ def movAvgDF(length, dataFrame:pd.DataFrame, feature:str, displace = None):
             movingAvgArr[len(dataFrame.index) - day - 1] = tempAvg
         return movingAvgArr
 
-dataPath = "/Users/williamzheng/Documents/pthyon files workspace/STOCKNN/Trading Attempts/TradeAttempt2/AutoTrading2/"
-
-amznDF = pd.read_csv(dataPath + "AMZN.csv")
-applDF = pd.read_csv(dataPath + "AAPL.csv")
-
-fig0 = plt.figure()
-ax0_0 = fig0.add_subplot()
-
-candleSticks(applDF, ax0_0)
-for i in range(1, 3):
-    ax0_0.plot(movAvgDF(i * 7, applDF, "Close"))
-
-ma7 = movAvgDF(7, applDF, "Close")
-ma14 = movAvgDF(14, applDF, "Close")
-
-ma7DF = pd.DataFrame(data=ma7, columns=["Close"])
-ma14DF = pd.DataFrame(data=ma14, columns=["Close"])
-
 def findCross(shortMA:pd.DataFrame, longMA:pd.DataFrame, longestPeriodLen, feature:str):
+    #Finds when the moving averages cross
     actionTable = np.zeros((len(longMA.index)))
     temp = 0
     temp2 = 0
@@ -75,26 +54,101 @@ def findCross(shortMA:pd.DataFrame, longMA:pd.DataFrame, longestPeriodLen, featu
             actionTable[day] = 0
     return actionTable
 
+class testorBot():
+    def __init__(self, shortMA:int, longMA:int, feature:str, stockDF:pd.DataFrame) -> None:
+        self.dataFeature = feature
+        self.selectedDF = stockDF
+        self.dfLength = len(stockDF.index)
+        self.MAshort = movAvgDF(shortMA, stockDF, feature)
+        self.MAlong = movAvgDF(longMA, stockDF, feature)
+        self.maShortDF = pd.DataFrame(data=self.MAshort, columns=[feature])
+        self.maLongDF = pd.DataFrame(data=self.MAlong, columns=[feature])
+        self.actionSequence = findCross(self.maShortDF, self.maLongDF, longMA, feature)
 
-actionSequence = findCross(ma7DF, ma14DF, 14, "Close")
-ax0_0.plot(actionSequence + 130)
+        self.balanceHist = np.zeros(self.dfLength)
 
-bot1 = main.account(1000)
-startDay = 14
-endDay = 740
-sharesAmount = 4
-for day in range(startDay, endDay):
-    if actionSequence[day] == 1:
-        #bot1.buy(5, applDF.loc[day, "Close"])
-        print(bot1.buy(sharesAmount, applDF.loc[day, "Close"]), f"  {bot1.numBuys}   {bot1.numSells}   {actionSequence[day]}   {day}   {applDF.loc[day, 'Close']}")
-    elif actionSequence[day] == -1:
-        #bot1.sell(5, applDF.loc[day, "Close"])
-        print(bot1.sell(sharesAmount, applDF.loc[day, "Close"]), f"  {bot1.numBuys}   {bot1.numSells}   {actionSequence[day]}   {day}   {applDF.loc[day, 'Close']}")
+    
+    def runTest(self, startDay, endDay, startingAmount):
+        bot1 = main.account(startingAmount)
+        endPrice = self.selectedDF.loc[endDay, self.dataFeature]
+        startPrice = self.selectedDF.loc[startDay, self.dataFeature]
 
-print(bot1.balance + bot1.numShares * applDF.loc[endDay, "Close"], f"  {bot1.numBuys}   {bot1.numSells}")
-buyhold = sharesAmount * applDF.loc[endDay, "Close"]
-print(buyhold)
+        #Calculate Buy and Hold
+        BH_Stocks = int((startingAmount / startPrice))
+        leftOverBal = startingAmount - BH_Stocks * startPrice
+        BH_balance = BH_Stocks * endPrice + leftOverBal
+
+        #Run Simulation
+        resulAct = stf.actionEvaluation(self.actionSequence, self.dataFeature, self.selectedDF)
+        print(f"Result Action: \n  Good: {resulAct[0]}\n  Bad: {resulAct[1]}")
+        volit = stf.stanDVec(self.selectedDF, 100, self.dataFeature)
+        stf.statsVolitAction(14, 750, resulAct[2], volit)
+
+        for day in range(startDay, endDay):
+            self.balanceHist[day] = bot1.balance + self.selectedDF.loc[day, self.dataFeature] * bot1.numShares
+            #scaling BalanceHist
+            buyShareAmount = int(bot1.balance / self.selectedDF.loc[day, self.dataFeature])
+            if self.actionSequence[day] == 1:
+                bot1.buy(buyShareAmount, self.selectedDF.loc[day, self.dataFeature])
+                """ print(botResult, 
+                      f"  {bot1.numBuys}  {bot1.numSells}   \
+                      {self.actionSequence[day]}   {day}   \
+                      {self.selectedDF.loc[day, self.dataFeature]}") """
+            elif self.actionSequence[day] == -1:
+                bot1.sell(bot1.numShares, self.selectedDF.loc[day, self.dataFeature])
+                """ print(botResult, 
+                      f"  {bot1.numBuys}  {bot1.numSells}   \
+                      {self.actionSequence[day]}   {day}   \
+                      {self.selectedDF.loc[day, self.dataFeature]}") """
+        
+        #scale balance history for comparision 
+        #NOTE: Normalize?
+        if endPrice > startPrice:
+            self.balanceHist = 10 * (self.balanceHist - startPrice) / (endPrice - startPrice)
+        else:
+            self.balanceHist = 10 * (self.balanceHist - endPrice) / (startPrice - endPrice) - 150
+        print(f"Bot Wealth: {bot1.balance + endPrice * bot1.numShares}\nBH: {BH_balance}")
+
+
+def plotData(axis:plt.Axes, testBot:testorBot):
+    
+    axis.plot(testBot.selectedDF.loc[:, testBot.dataFeature])
+    axis.plot(testBot.MAshort)
+    axis.plot(testBot.MAlong)
+    axis.plot(testBot.balanceHist)
+    
+    #candleSticks(testBot.selectedDF, axis)
+    if(False):
+        for i in range(len(testBot.actionSequence)):
+            if testBot.actionSequence[i] == 1:
+                axis.axvline(i, color = "green")
+            elif testBot.actionSequence[i] == -1:
+                axis.axvline(i, color = "red")
+
+
+appleTest = testorBot(8, 9, "Close", applDF)
+appleTest.runTest(14, 750, 1000)
+amznTest = testorBot(11, 12, "Close", amznDF)
+amznTest.runTest(14, 750, 1000)
+
+""" fig0 = plt.figure()
+ax0_0 = fig0.add_subplot()
+plotData(ax0_0, appleTest)
+ax0_0.plot(stf.stanDVec(applDF, 7, "Close"))
+
+fig1 = plt.figure()
+ax1_0 = fig1.add_subplot()
+plotData(ax1_0, amznTest) """
+allFig = plt.figure()
+ax1 = allFig.add_subplot(221)
+ax2 = allFig.add_subplot(222)
+ax3 = allFig.add_subplot(223)
+ax4 = allFig.add_subplot(224)
+plotData(ax1, appleTest)
+plotData(ax2, amznTest)
+ax3.plot(stf.stanDVec(applDF, 100, "Close"))
+ax3.plot(stf.stanDVec(amznDF, 100, "Close"))
+
 
 plt.show()
-
 
