@@ -33,7 +33,6 @@ def actionEvaluation(actions:np.ndarray, feature:str, df:pd.DataFrame):
     for i in range(30, dfLength):
         if (actions[i] == 1 and prevPrice > df.loc[i, feature]) or \
            (actions[i] == -1 and prevPrice < df.loc[i, feature]):
-            prevPrice = df.loc[i, feature]
             goodAct += 1
 
             if (prevPrice > df.loc[i, feature]):
@@ -41,15 +40,18 @@ def actionEvaluation(actions:np.ndarray, feature:str, df:pd.DataFrame):
             else:
                 actionMap[i] = df.loc[i, feature] - prevPrice
 
+            prevPrice = df.loc[i, feature]
+
         elif (actions[i] == 1 and prevPrice < df.loc[i, feature]) or \
              (actions[i] == -1 and prevPrice > df.loc[i, feature]):
-            prevPrice = df.loc[i, feature]
             badAct += 1
             
             if (prevPrice < df.loc[i, feature]):
                 actionMap[i] = prevPrice - df.loc[i, feature]
             else:
                 actionMap[i] = df.loc[i, feature] - prevPrice
+            
+            prevPrice = df.loc[i, feature]
     
     return goodAct, badAct, actionMap
 
@@ -57,5 +59,5 @@ def actionEvaluation(actions:np.ndarray, feature:str, df:pd.DataFrame):
 def statsVolitAction(begin:int, end:int, actionMap:np.ndarray, volitility:np.ndarray):
     fig = plt.figure()
     ax = fig.add_subplot()
-    ax.plot(volitility[begin:end], actionMap[begin:end])
+    ax.scatter(volitility[begin:end], actionMap[begin:end])
 

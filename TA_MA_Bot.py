@@ -66,7 +66,7 @@ class testorBot():
         self.actionSequence = findCross(self.maShortDF, self.maLongDF, longMA, feature)
 
         self.balanceHist = np.zeros(self.dfLength)
-
+        self.BH_Hist = np.zeros(self.dfLength)
     
     def runTest(self, startDay, endDay, startingAmount):
         bot1 = main.account(startingAmount)
@@ -81,10 +81,11 @@ class testorBot():
         #Run Simulation
         resulAct = stf.actionEvaluation(self.actionSequence, self.dataFeature, self.selectedDF)
         print(f"Result Action: \n  Good: {resulAct[0]}\n  Bad: {resulAct[1]}")
-        volit = stf.stanDVec(self.selectedDF, 100, self.dataFeature)
-        stf.statsVolitAction(14, 750, resulAct[2], volit)
+        #volit = stf.stanDVec(self.selectedDF, 10, self.dataFeature)
+        #stf.statsVolitAction(50, 750, resulAct[2], self.selectedDF.loc[:, "Volume"])
 
         for day in range(startDay, endDay):
+            self.BH_Hist[day] = leftOverBal + BH_Stocks * self.selectedDF.loc[day, self.dataFeature]
             self.balanceHist[day] = bot1.balance + self.selectedDF.loc[day, self.dataFeature] * bot1.numShares
             #scaling BalanceHist
             buyShareAmount = int(bot1.balance / self.selectedDF.loc[day, self.dataFeature])
@@ -103,10 +104,11 @@ class testorBot():
         
         #scale balance history for comparision 
         #NOTE: Normalize?
-        if endPrice > startPrice:
-            self.balanceHist = 10 * (self.balanceHist - startPrice) / (endPrice - startPrice)
-        else:
-            self.balanceHist = 10 * (self.balanceHist - endPrice) / (startPrice - endPrice) - 150
+        if(False):
+            if endPrice > startPrice:
+                self.balanceHist = 10 * (self.balanceHist - startPrice) / (endPrice - startPrice)
+            else:
+                self.balanceHist = 10 * (self.balanceHist - endPrice) / (startPrice - endPrice) - 150
         print(f"Bot Wealth: {bot1.balance + endPrice * bot1.numShares}\nBH: {BH_balance}")
 
 
@@ -115,8 +117,8 @@ def plotData(axis:plt.Axes, testBot:testorBot):
     axis.plot(testBot.selectedDF.loc[:, testBot.dataFeature])
     axis.plot(testBot.MAshort)
     axis.plot(testBot.MAlong)
-    axis.plot(testBot.balanceHist)
-    
+    axis.legend(["Stock Price", "MAshort", "MAlong", "Balance History"])
+
     #candleSticks(testBot.selectedDF, axis)
     if(False):
         for i in range(len(testBot.actionSequence)):
@@ -126,9 +128,9 @@ def plotData(axis:plt.Axes, testBot:testorBot):
                 axis.axvline(i, color = "red")
 
 
-appleTest = testorBot(8, 9, "Close", applDF)
-appleTest.runTest(14, 750, 1000)
-amznTest = testorBot(11, 12, "Close", amznDF)
+appleTest = testorBot(8, 9, "Close", applDF) #8, 9
+appleTest.runTest(50, 750, 1000)
+amznTest = testorBot(11, 12, "Close", amznDF) #11, 12
 amznTest.runTest(14, 750, 1000)
 
 """ fig0 = plt.figure()
@@ -146,8 +148,12 @@ ax3 = allFig.add_subplot(223)
 ax4 = allFig.add_subplot(224)
 plotData(ax1, appleTest)
 plotData(ax2, amznTest)
-ax3.plot(stf.stanDVec(applDF, 100, "Close"))
-ax3.plot(stf.stanDVec(amznDF, 100, "Close"))
+ax3.plot(stf.stanDVec(applDF, 50, "Close"))
+ax3.plot(stf.stanDVec(amznDF, 50, "Close"))
+ax4.plot(appleTest.BH_Hist)
+ax4.plot(appleTest.balanceHist)
+ax4.plot(amznTest.BH_Hist)
+ax4.plot(amznTest.balanceHist)
 
 
 plt.show()
