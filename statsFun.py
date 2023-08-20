@@ -25,12 +25,12 @@ def stanDVec(df:pd.DataFrame, period:int, feature:str):
     return allStd
 
 def actionEvaluation(actions:np.ndarray, feature:str, df:pd.DataFrame):
-    prevPrice = 10000
+    prevPrice = df.loc[0, feature]
     dfLength = len(df.index)
     goodAct = 0
     badAct = 0
     actionMap = np.zeros(dfLength)
-    for i in range(30, dfLength):
+    for i in range(1, dfLength):
         if (actions[i] == 1 and prevPrice > df.loc[i, feature]) or \
            (actions[i] == -1 and prevPrice < df.loc[i, feature]):
             goodAct += 1
@@ -60,6 +60,13 @@ def statsVolitAction(begin:int, end:int, actionMap:np.ndarray, volitility:np.nda
     fig = plt.figure()
     ax = fig.add_subplot()
     total = 0
-    ax.axhline(np.average(actionMap))
+    countValidActions = 0
+    for action in actionMap:
+        if action != 0:
+            total += action
+            countValidActions += 1
+    actionResult = total/countValidActions
+    print(f"Average Action: {actionResult} (not including zero results)")
+    ax.axhline(np.average(actionResult))
     ax.scatter(volitility[begin:end], actionMap[begin:end])
 
