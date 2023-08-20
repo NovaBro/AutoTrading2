@@ -59,5 +59,7 @@ def actionEvaluation(actions:np.ndarray, feature:str, df:pd.DataFrame):
 def statsVolitAction(begin:int, end:int, actionMap:np.ndarray, volitility:np.ndarray):
     fig = plt.figure()
     ax = fig.add_subplot()
+    total = 0
+    ax.axhline(np.average(actionMap))
     ax.scatter(volitility[begin:end], actionMap[begin:end])
 

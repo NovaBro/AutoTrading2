@@ -81,8 +81,8 @@ class testorBot():
         #Run Simulation
         resulAct = stf.actionEvaluation(self.actionSequence, self.dataFeature, self.selectedDF)
         print(f"Result Action: \n  Good: {resulAct[0]}\n  Bad: {resulAct[1]}")
-        #volit = stf.stanDVec(self.selectedDF, 10, self.dataFeature)
-        #stf.statsVolitAction(50, 750, resulAct[2], self.selectedDF.loc[:, "Volume"])
+        volit = stf.stanDVec(self.selectedDF, 10, self.dataFeature)
+        stf.statsVolitAction(50, 750, resulAct[2], volit)#self.selectedDF.loc[:, "Volume"]
 
         for day in range(startDay, endDay):
             self.BH_Hist[day] = leftOverBal + BH_Stocks * self.selectedDF.loc[day, self.dataFeature]
@@ -101,14 +101,7 @@ class testorBot():
                       f"  {bot1.numBuys}  {bot1.numSells}   \
                       {self.actionSequence[day]}   {day}   \
                       {self.selectedDF.loc[day, self.dataFeature]}") """
-        
-        #scale balance history for comparision 
-        #NOTE: Normalize?
-        if(False):
-            if endPrice > startPrice:
-                self.balanceHist = 10 * (self.balanceHist - startPrice) / (endPrice - startPrice)
-            else:
-                self.balanceHist = 10 * (self.balanceHist - endPrice) / (startPrice - endPrice) - 150
+
         print(f"Bot Wealth: {bot1.balance + endPrice * bot1.numShares}\nBH: {BH_balance}")
 
 
@@ -129,7 +122,7 @@ def plotData(axis:plt.Axes, testBot:testorBot):
 
 
 appleTest = testorBot(8, 9, "Close", applDF) #8, 9
-appleTest.runTest(50, 750, 1000)
+appleTest.runTest(14, 750, 1000)
 amznTest = testorBot(11, 12, "Close", amznDF) #11, 12
 amznTest.runTest(14, 750, 1000)
 
@@ -141,6 +134,7 @@ ax0_0.plot(stf.stanDVec(applDF, 7, "Close"))
 fig1 = plt.figure()
 ax1_0 = fig1.add_subplot()
 plotData(ax1_0, amznTest) """
+
 allFig = plt.figure()
 ax1 = allFig.add_subplot(221)
 ax2 = allFig.add_subplot(222)
